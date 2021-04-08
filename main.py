@@ -45,7 +45,7 @@ if __name__ == '__main__':
         except KeyError as exc:
             var = exc.args[0]
             print(("The required configuration variable {} is missing. "
-                "Please review secrets.py.").format(var))
+                   "Please review secrets.py.").format(var))
             exit(123)
 
         try:
@@ -53,7 +53,7 @@ if __name__ == '__main__':
         except KeyError as exc:
             var = exc.args[0]
             print(("The optional configuration variable {} is missing. "
-                "Tweepy will be initialized in 'app-only' mode.").format(var))
+                   "Tweepy will be initialized in 'app-only' mode.").format(var))
 
     twapi = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
 

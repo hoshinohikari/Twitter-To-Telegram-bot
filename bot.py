@@ -5,10 +5,10 @@ import tweepy
 from pytz import timezone, utc
 from telegram import Bot
 from telegram.error import TelegramError
-from telegram.utils.request import Request
 
 from models import TelegramChat, TwitterUser
 from util import escape_markdown, prepare_tweet_text
+
 
 class TwitterForwarderBot(Bot):
     def __init__(self, token, tweepy_api_object, update_offset=0):
@@ -42,8 +42,12 @@ class TwitterForwarderBot(Bot):
             image in the tweet, which will then be displayed as preview
             '''
             photo_url = ''
+            video_url = ''
+
             if len(eval(tweet.photo_url)) != 0:
                 photo_url = '[\xad](%s)' % eval(tweet.photo_url)[0]
+            if tweet.video_url:
+                video_url = tweet.video_url
 
             created_dt = utc.localize(tweet.created_at)
             if chat.timezone_name is not None:
@@ -68,12 +72,36 @@ class TwitterForwarderBot(Bot):
                 ),
                 parse_mode=telegram.ParseMode.MARKDOWN)
 
-            if photo_url:
-                for img in eval(tweet.photo_url):
-                    self.sendPhoto(
+            try:
+                if photo_url:
+                    for img in eval(tweet.photo_url):
+                        self.sendPhoto(
+                            chat_id=chat.chat_id,
+                            photo=img
+                        )
+            except:
+                self.logger.warning("Sending tweet {} img failed, img url is {}...".format(
+                    tweet.tw_id, tweet.photo_url
+                ))
+                file = open("photo_url.txt", "a")
+                file.writelines(photo_url)
+                file.writelines(tweet.photo_url)
+                file.close()
+
+            try:
+                if video_url:
+                    self.sendVideo(
                         chat_id=chat.chat_id,
-                        photo=img
+                        video=tweet.video_url
                     )
+            except:
+                self.logger.warning("Sending tweet {} video failed, video url is {}...".format(
+                    tweet.tw_id, tweet.video_url
+                ))
+                file = open("video_url.txt", "a")
+                file.writelines(video_url)
+                file.writelines(tweet.video_url)
+                file.close()
 
         except TelegramError as e:
             self.logger.info("Couldn't send tweet {} to chat {}: {}".format(

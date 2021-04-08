@@ -16,6 +16,7 @@ INFO_CLEANUP = {
     'PROTECTED': "Your subscription to @{} was removed because that profile is protected and can't be fetched.",
 }
 
+
 def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
     job = context_in.job
     bot = context_in.bot
@@ -30,9 +31,9 @@ def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
     tweet_rows = []
     # fetch the tw users' tweets
     tw_users = list((TwitterUser.select()
-                        .join(Subscription)
-                        .group_by(TwitterUser)
-                        .order_by(TwitterUser.last_fetched)))
+                     .join(Subscription)
+                     .group_by(TwitterUser)
+                     .order_by(TwitterUser.last_fetched)))
     updated_tw_users = []
     users_to_cleanup = []
 
@@ -82,11 +83,20 @@ def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
             extensions = ('.jpg', '.jpeg', '.png', '.gif')
             pattern = '[(%s)]$' % ')('.join(extensions)
             photo_url = []
+            video_url = ''
             tweet_text = html.unescape(tweet.full_text)
             if 'media' in tweet.entities:
                 for imgs in tweet.extended_entities['media']:
                     photo_url.append(imgs['media_url_https'])
-                #photo_url = tweet.entities['media'][0]['media_url_https']
+                try:
+                    if 'video_info' in tweet.extended_entities['media'][0]:
+                        video_url = tweet.extended_entities['media'][0]['video_info']['variants'][1]['url']
+                except:
+                    job.logger.warning(
+                        "Finding video failed, video url is in the video_url.txt...")
+                    file = open("video_url.txt", "a")
+                    file.writelines(tweet.extended_entities['media'])
+                    file.close()
             else:
                 for url_entity in tweet.entities['urls']:
                     expanded_url = url_entity['expanded_url']
@@ -108,6 +118,7 @@ def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
                 'created_at': tweet.created_at,
                 'twitter_user': tw_user,
                 'photo_url': photo_url,
+                'video_url': video_url,
             }
             try:
                 t = Tweet.get(Tweet.tw_id == tweet.id)
@@ -131,7 +142,7 @@ def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
 
     # send the new tweets to subscribers
     subscriptions = list(Subscription.select()
-                            .where(Subscription.tw_user << updated_tw_users))
+                         .where(Subscription.tw_user << updated_tw_users))
     for s in subscriptions:
         # are there new tweets? send em all!
         job.logger.debug(
@@ -159,7 +170,7 @@ def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
             for tw in (s.tw_user.tweets.select()
                                 .where(Tweet.tw_id > s.last_tweet_id)
                                 .order_by(Tweet.tw_id.asc())
-                        ):
+                       ):
                 bot.send_tweet(s.tg_chat, tw, s.sub_kind)
 
             # save the latest tweet sent on this subscription
@@ -169,22 +180,23 @@ def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
 
         job.logger.debug("- No new tweets here.")
 
-
     job.logger.debug("Starting tw_user cleanup")
     if not users_to_cleanup:
         job.logger.debug("- Nothing to cleanup")
     else:
         for tw_user, reason in users_to_cleanup:
-            job.logger.debug("- Cleaning up subs on user @{}, {}".format(tw_user.screen_name, reason))
+            job.logger.debug(
+                "- Cleaning up subs on user @{}, {}".format(tw_user.screen_name, reason))
             message = INFO_CLEANUP[reason].format(tw_user.screen_name)
             subs = list(tw_user.subscriptions)
             for s in subs:
                 chat = s.tg_chat
                 if chat.delete_soon:
-                    job.logger.debug ("- - skipping because of delete_soon chatid={}".format(chat_id))
+                    job.logger.debug(
+                        "- - skipping because of delete_soon chatid={}".format(chat_id))
                     continue
                 chat_id = chat.chat_id
-                job.logger.debug ("- - bye on chatid={}".format(chat_id))
+                job.logger.debug("- - bye on chatid={}".format(chat_id))
                 s.delete_instance()
 
                 try:
@@ -207,10 +219,10 @@ def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
                         chat.delete_soon = True
                         chat.save()
 
-        job.logger.debug("- Cleaning up TwitterUser @{}".format(tw_user.screen_name, reason))
+        job.logger.debug("- Cleaning up TwitterUser @{} {}".format(tw_user.screen_name, reason))
         tw_user.delete_instance()
 
-        job.logger.debug ("- Cleanup finished")
+        job.logger.debug("- Cleanup finished")
 
     job.logger.debug("Cleaning up TelegramChats marked for deletion")
     for chat in TelegramChat.select().where(TelegramChat.delete_soon == True):

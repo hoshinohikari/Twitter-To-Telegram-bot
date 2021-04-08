@@ -8,9 +8,11 @@ from tweepy.auth import OAuthHandler
 
 db = SqliteDatabase('peewee.db', timeout=10)
 
+
 class BaseModel(Model):
     class Meta:
         database = db
+
 
 class TwitterUser(BaseModel):
     screen_name = CharField(unique=True)
@@ -81,6 +83,7 @@ class Tweet(BaseModel):
     created_at = DateTimeField()
     twitter_user = ForeignKeyField(TwitterUser, related_name='tweets')
     photo_url = TextField(default='')
+    video_url = TextField(default='')
 
     @property
     def screen_name(self):
@@ -100,8 +103,10 @@ for t in (TwitterUser, TelegramChat, Tweet, Subscription):
 migrator = SqliteMigrator(db)
 operations = [
     migrator.add_column('tweet', 'photo_url', Tweet.photo_url),
+    migrator.add_column('tweet', 'video_url', Tweet.video_url),
     migrator.add_column('twitteruser', 'last_fetched', TwitterUser.last_fetched),
-    migrator.add_column('telegramchat', 'twitter_request_token', TelegramChat.twitter_request_token),
+    migrator.add_column('telegramchat', 'twitter_request_token',
+                        TelegramChat.twitter_request_token),
     migrator.add_column('telegramchat', 'twitter_token', TelegramChat.twitter_token),
     migrator.add_column('telegramchat', 'twitter_secret', TelegramChat.twitter_secret),
     migrator.add_column('telegramchat', 'timezone_name', TelegramChat.timezone_name),

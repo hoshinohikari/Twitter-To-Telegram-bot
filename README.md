@@ -22,9 +22,7 @@ So, big thanks to anyone who contributed on these projects! :D
 ## What it can do
 It can retweet tweets sent by your subscribed Twitter users to the telegram.  
 You can choose to subscribe to all tweets, to no retweets or replies, or to only media.  
-The media will be forwarded to the telegram as images, including jpeg and gif formats.
-### TODO
-forward the video from tweets
+The media will be forwarded to the telegram as images or video, including jpeg and gif formats.
 
 ## How do I run this?
 
