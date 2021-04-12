@@ -84,8 +84,10 @@ class TwitterForwarderBot(Bot):
                     tweet.tw_id, tweet.photo_url
                 ))
                 file = open("photo_url.txt", "a")
-                file.writelines(photo_url)
-                file.writelines(tweet.photo_url)
+                file.write('\n')
+                file.write(str(photo_url))
+                file.write('\n')
+                file.write(str(tweet.photo_url))
                 file.close()
 
             try:
@@ -99,8 +101,10 @@ class TwitterForwarderBot(Bot):
                     tweet.tw_id, tweet.video_url
                 ))
                 file = open("video_url.txt", "a")
-                file.writelines(video_url)
-                file.writelines(tweet.video_url)
+                file.write('\n')
+                file.write(str(video_url))
+                file.write('\n')
+                file.write(str(tweet.video_url))
                 file.close()
 
         except TelegramError as e:
