@@ -5,6 +5,7 @@ import tweepy
 from pytz import timezone, utc
 from telegram import Bot
 from telegram.error import TelegramError
+from telegram.utils.request import Request
 
 from models import TelegramChat, TwitterUser
 from util import escape_markdown, prepare_tweet_text
@@ -17,6 +18,7 @@ class TwitterForwarderBot(Bot):
         self.logger.info("Initializing")
         self.update_offset = update_offset
         self.tw = tweepy_api_object
+        self._request = Request(con_pool_size=8)
 
     def reply(self, update, text, *args, **kwargs):
         self.sendMessage(chat_id=update.message.chat.id, text=text, *args, **kwargs)
@@ -50,6 +52,7 @@ class TwitterForwarderBot(Bot):
                 video_url = tweet.video_url
 
             created_dt = utc.localize(tweet.created_at)
+            #created_dt = tweet.created_at
             if chat.timezone_name is not None:
                 tz = timezone(chat.timezone_name)
                 created_dt = created_dt.astimezone(tz)
@@ -72,40 +75,40 @@ class TwitterForwarderBot(Bot):
                 ),
                 parse_mode=telegram.ParseMode.MARKDOWN)
 
-            try:
-                if photo_url:
-                    for img in eval(tweet.photo_url):
-                        self.sendPhoto(
-                            chat_id=chat.chat_id,
-                            photo=img
-                        )
-            except:
-                self.logger.warning("Sending tweet {} img failed, img url is {}...".format(
-                    tweet.tw_id, tweet.photo_url
-                ))
-                file = open("photo_url.txt", "a")
-                file.write('\n')
-                file.write(str(photo_url))
-                file.write('\n')
-                file.write(str(tweet.photo_url))
-                file.close()
-
-            try:
-                if video_url:
+            if video_url:
+                try:
                     self.sendVideo(
                         chat_id=chat.chat_id,
                         video=tweet.video_url
                     )
-            except:
-                self.logger.warning("Sending tweet {} video failed, video url is {}...".format(
-                    tweet.tw_id, tweet.video_url
-                ))
-                file = open("video_url.txt", "a")
-                file.write('\n')
-                file.write(str(video_url))
-                file.write('\n')
-                file.write(str(tweet.video_url))
-                file.close()
+                except TelegramError as e:
+                    self.logger.warning("Sending tweet {} video failed, video url is {}, error is {}".format(
+                        tweet.tw_id, tweet.video_url, e
+                    ))
+                    file = open("video_url.txt", "a")
+                    file.write('\n')
+                    file.write(str(video_url))
+                    file.write('\n')
+                    file.write(str(tweet.video_url))
+                    file.close()
+            else:
+                try:
+                    if photo_url:
+                        for img in eval(tweet.photo_url):
+                            self.sendPhoto(
+                                chat_id=chat.chat_id,
+                                photo=img
+                            )
+                except TelegramError as e:
+                    self.logger.warning("Sending tweet {} img failed, img url is {}, error is {}".format(
+                        tweet.tw_id, tweet.photo_url, e
+                    ))
+                    file = open("photo_url.txt", "a")
+                    file.write('\n')
+                    file.write(str(photo_url))
+                    file.write('\n')
+                    file.write(str(tweet.photo_url))
+                    file.close()
 
         except TelegramError as e:
             self.logger.info("Couldn't send tweet {} to chat {}: {}".format(
@@ -134,8 +137,8 @@ class TwitterForwarderBot(Bot):
 
     def get_tw_user(self, tw_username):
         try:
-            tw_user = self.tw.get_user(tw_username)
-        except tweepy.error.TweepError as err:
+            tw_user = self.tw.get_user(screen_name=tw_username)
+        except tweepy.errors.TweepyException as err:
             self.logger.error(err)
             return None
 

@@ -55,7 +55,7 @@ if __name__ == '__main__':
             print(("The optional configuration variable {} is missing. "
                    "Tweepy will be initialized in 'app-only' mode.").format(var))
 
-    twapi = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
+    twapi = tweepy.API(auth, wait_on_rate_limit=True)
 
     # initialize telegram API
     token = env['TELEGRAM_BOT_TOKEN']

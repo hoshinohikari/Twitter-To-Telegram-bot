@@ -56,7 +56,7 @@ def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
                     since_id=tw_user.last_tweet_id,
                     tweet_mode='extended')
             updated_tw_users.append(tw_user)
-        except tweepy.error.TweepError as e:
+        except tweepy.errors.TweepyException as e:
             sc = e.response.status_code
             if sc == 429:
                 job.logger.debug("- Hit ratelimit, breaking.")
