@@ -90,10 +90,6 @@ def FetchAndSendTweetsJob(context_in: CallbackContext) -> None:
                     photo_url.append(imgs['media_url_https'])
                 try:
                     if 'video_info' in tweet.extended_entities['media'][0]:
-                        # file = open("video_url.txt", "a")
-                        # file.write('\n')
-                        # file.write(str(tweet.extended_entities['media']))
-                        # file.close()
                         max_bit = 0
                         for video_info in tweet.extended_entities['media'][0]['video_info']['variants']:
                             if 'bitrate' in video_info:

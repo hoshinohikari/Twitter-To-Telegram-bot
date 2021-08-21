@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 import telegram
@@ -6,6 +7,7 @@ from pytz import timezone, utc
 from telegram import Bot
 from telegram.error import TelegramError
 from telegram.utils.request import Request
+from dateutil.parser import parse
 
 from models import TelegramChat, TwitterUser
 from util import escape_markdown, prepare_tweet_text
@@ -51,8 +53,8 @@ class TwitterForwarderBot(Bot):
             if tweet.video_url:
                 video_url = tweet.video_url
 
-            created_dt = utc.localize(tweet.created_at)
-            #created_dt = tweet.created_at
+            created_dt = parse(tweet.created_at)
+            #created_dt = datetime.datetime(tweet.created_at)
             if chat.timezone_name is not None:
                 tz = timezone(chat.timezone_name)
                 created_dt = created_dt.astimezone(tz)
@@ -61,12 +63,11 @@ class TwitterForwarderBot(Bot):
                 chat_id=chat.chat_id,
                 disable_web_page_preview=not photo_url,
                 text="""
-{link_preview}*{name}* ([@{screen_name}](https://twitter.com/{screen_name})) at {created_at}:
+*{name}* ([@{screen_name}](https://twitter.com/{screen_name})) at {created_at}:
 {text}
 -- [Link to this Tweet](https://twitter.com/{screen_name}/status/{tw_id})
 """
                 .format(
-                    link_preview=photo_url,
                     text=prepare_tweet_text(tweet.text),
                     name=escape_markdown(tweet.name),
                     screen_name=tweet.screen_name,
@@ -75,12 +76,10 @@ class TwitterForwarderBot(Bot):
                 ),
                 parse_mode=telegram.ParseMode.MARKDOWN)
 
+            MediaList = []
             if video_url:
                 try:
-                    self.sendVideo(
-                        chat_id=chat.chat_id,
-                        video=tweet.video_url
-                    )
+                    MediaList.append(telegram.InputMediaVideo(media=tweet.video_url))
                 except TelegramError as e:
                     self.logger.warning("Sending tweet {} video failed, video url is {}, error is {}".format(
                         tweet.tw_id, tweet.video_url, e
@@ -95,10 +94,7 @@ class TwitterForwarderBot(Bot):
                 try:
                     if photo_url:
                         for img in eval(tweet.photo_url):
-                            self.sendPhoto(
-                                chat_id=chat.chat_id,
-                                photo=img
-                            )
+                            MediaList.append(telegram.InputMediaPhoto(media=img))
                 except TelegramError as e:
                     self.logger.warning("Sending tweet {} img failed, img url is {}, error is {}".format(
                         tweet.tw_id, tweet.photo_url, e
@@ -108,6 +104,21 @@ class TwitterForwarderBot(Bot):
                     file.write(str(photo_url))
                     file.write('\n')
                     file.write(str(tweet.photo_url))
+                    file.close()
+
+            if len(MediaList) != 0:
+                try:
+                    self.sendMediaGroup(
+                        chat_id=chat.chat_id,
+                        media=MediaList
+                    )
+                except TelegramError as e:
+                    self.logger.warning("Sending tweet {} img failed, img url is {}, error is {}".format(
+                        tweet.tw_id, MediaList, e
+                    ))
+                    file = open("media_url.txt", "a")
+                    file.write('\n')
+                    file.write(str(MediaList))
                     file.close()
 
         except TelegramError as e:
